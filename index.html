@@ -87,6 +87,10 @@
             grid-template-columns: 1fr;
         }
 
+        .form-row.triple {
+            grid-template-columns: 1fr 1fr 1fr;
+        }
+
         .form-group {
             display: flex;
             flex-direction: column;
@@ -113,6 +117,29 @@
             border-color: #667eea;
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
             transform: translateY(-1px);
+        }
+
+        .precio-toggle {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .toggle-option {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .toggle-option.active {
+            border-color: #667eea;
+            background: #667eea;
+            color: white;
         }
 
         .cuotas-container {
@@ -183,12 +210,27 @@
             font-size: 0.9rem;
         }
 
+        .btn-add {
+            background: #17a2b8;
+            color: white;
+            padding: 8px 16px;
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+        }
+
         .btn-group {
             display: flex;
             gap: 15px;
             justify-content: center;
             margin-top: 30px;
             flex-wrap: wrap;
+        }
+
+        .cuotas-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 15px;
         }
 
         .cliente-existente {
@@ -249,6 +291,10 @@
 
         @media (max-width: 768px) {
             .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .form-row.triple {
                 grid-template-columns: 1fr;
             }
             
@@ -360,7 +406,7 @@
                             <input type="text" id="rutRepresentante" placeholder="12.345.678-9" required>
                         </div>
                     </div>
-                    <div class="form-row">
+                    <div class="form-row triple">
                         <div class="form-group">
                             <label>Fecha de Escritura Pública</label>
                             <input type="date" id="fechaEscritura" required>
@@ -369,20 +415,36 @@
                             <label>Nombre del Notario Público</label>
                             <input type="text" id="nombreNotario" required>
                         </div>
+                        <div class="form-group">
+                            <label>Comuna de la Notaría</label>
+                            <input type="text" id="comunaNotaria" placeholder="Ej: Santiago, Providencia" required>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Información Financiera -->
                 <div class="form-section">
                     <h3>Información Financiera</h3>
+                    
+                    <div class="form-group">
+                        <label>Tipo de Moneda</label>
+                        <div class="precio-toggle">
+                            <div class="toggle-option active" data-tipo="UF">UF (Unidades de Fomento)</div>
+                            <div class="toggle-option" data-tipo="CLP">Pesos Chilenos (CLP)</div>
+                        </div>
+                    </div>
+
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Precio Total (UF)</label>
-                            <input type="number" id="precioUF" step="0.01" min="0" required>
+                            <label id="labelPrecio">Precio Total (UF)</label>
+                            <input type="number" id="precioTotal" step="0.01" min="0" required>
                         </div>
                         <div class="form-group">
                             <label>Número de Cuotas</label>
-                            <input type="number" id="numeroCuotas" min="1" max="12" value="4" required>
+                            <div class="cuotas-controls">
+                                <input type="number" id="numeroCuotas" min="1" max="12" value="4" required>
+                                <button type="button" class="btn btn-add" id="btnAgregarCuota">+ Agregar Cuota</button>
+                            </div>
                         </div>
                     </div>
                     
@@ -411,6 +473,7 @@
         // Variables globales
         let supabase = null;
         let programas = [];
+        let tipoMoneda = 'UF';
 
         // Función para mostrar alertas
         function mostrarAlerta(mensaje, tipo) {
@@ -467,9 +530,6 @@
 
                 mostrarAlerta('Conectando a Supabase...', 'success');
                 supabase = window.supabase.createClient(url, key);
-                
-                // Hacer una prueba simple de conexión
-                console.log('Cliente Supabase creado:', supabase);
                 
                 // Verificar conexión con una consulta simple
                 const { data, error } = await supabase
@@ -567,7 +627,30 @@
                 document.getElementById('rutRepresentante').value = cliente.rut_representante || '';
                 document.getElementById('fechaEscritura').value = cliente.fecha_escritura || '';
                 document.getElementById('nombreNotario').value = cliente.nombre_notario || '';
+                document.getElementById('comunaNotaria').value = cliente.comuna_notaria || '';
             }
+        }
+
+        // Cambiar tipo de moneda
+        function cambiarTipoMoneda(tipo) {
+            tipoMoneda = tipo;
+            
+            // Actualizar botones
+            document.querySelectorAll('.toggle-option').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.tipo === tipo) {
+                    btn.classList.add('active');
+                }
+            });
+            
+            // Actualizar label
+            const label = document.getElementById('labelPrecio');
+            label.textContent = tipo === 'UF' ? 'Precio Total (UF)' : 'Precio Total (CLP)';
+            
+            // Actualizar placeholder
+            const input = document.getElementById('precioTotal');
+            input.placeholder = tipo === 'UF' ? '0.00' : '0';
+            input.step = tipo === 'UF' ? '0.01' : '1';
         }
 
         // Generar cuotas dinámicamente
@@ -586,7 +669,7 @@
                         <input type="date" id="fechaCuota${i}" required>
                     </div>
                     <div class="form-group">
-                        <input type="number" id="montoCuota${i}" placeholder="Monto UF" step="0.01" min="0" required>
+                        <input type="number" id="montoCuota${i}" placeholder="Monto ${tipoMoneda}" step="${tipoMoneda === 'UF' ? '0.01' : '1'}" min="0" required>
                     </div>
                     <button type="button" class="btn btn-danger" onclick="eliminarCuota(${i})">✕</button>
                 `;
@@ -596,13 +679,26 @@
             calcularCuotas();
         }
 
+        // Agregar una cuota más
+        function agregarCuota() {
+            const numeroCuotasActual = parseInt(document.getElementById('numeroCuotas').value);
+            if (numeroCuotasActual < 12) {
+                document.getElementById('numeroCuotas').value = numeroCuotasActual + 1;
+                generarCuotas();
+            } else {
+                mostrarAlerta('Máximo 12 cuotas permitidas', 'error');
+            }
+        }
+
         // Calcular cuotas automáticamente
         function calcularCuotas() {
-            const precioTotal = parseFloat(document.getElementById('precioUF').value) || 0;
+            const precioTotal = parseFloat(document.getElementById('precioTotal').value) || 0;
             const numeroCuotas = parseInt(document.getElementById('numeroCuotas').value) || 4;
             
             if (precioTotal > 0 && numeroCuotas > 0) {
-                const montoPorCuota = (precioTotal / numeroCuotas).toFixed(2);
+                const montoPorCuota = tipoMoneda === 'UF' ? 
+                    (precioTotal / numeroCuotas).toFixed(2) : 
+                    Math.round(precioTotal / numeroCuotas);
                 
                 for (let i = 1; i <= numeroCuotas; i++) {
                     const input = document.getElementById(`montoCuota${i}`);
@@ -637,7 +733,8 @@
                 nombre_representante: document.getElementById('nombreRepresentante').value,
                 rut_representante: document.getElementById('rutRepresentante').value,
                 fecha_escritura: document.getElementById('fechaEscritura').value,
-                nombre_notario: document.getElementById('nombreNotario').value
+                nombre_notario: document.getElementById('nombreNotario').value,
+                comuna_notaria: document.getElementById('comunaNotaria').value
             };
 
             try {
@@ -661,7 +758,7 @@
             const requiredFields = [
                 'fechaContrato', 'nombreLegal', 'nombreFantasia', 'rutCliente',
                 'direccionCliente', 'nombreRepresentante', 'rutRepresentante',
-                'fechaEscritura', 'nombreNotario', 'precioUF', 'numeroCuotas'
+                'fechaEscritura', 'nombreNotario', 'comunaNotaria', 'precioTotal', 'numeroCuotas'
             ];
 
             for (let field of requiredFields) {
@@ -729,135 +826,4 @@
 
             // Introducción con fecha y partes
             const fechaTexto = formatearFecha(datos.fechaContrato);
-            agregarTexto(`En Santiago de Chile, a ${fechaTexto}, entre ${datos.nombreLegal}, Rol Único Tributario número ${datos.rutCliente}, representada por ${datos.nombreRepresentante}, cédula nacional de identidad número ${datos.rutRepresentante}, todos con domicilio para estos efectos en ${datos.direccionCliente}, en adelante e indistintamente como "${datos.nombreFantasia}" por una parte, FUNDACIÓN INSTITUTO RELACIONAL (NUEVA EDUCACIÓN), Rol Único Tributario número 65.166.503-5, representada por don Arnoldo Cisternas Chávez, cédula nacional de identidad número 10.740.623-9, ambos domiciliados para estos efectos calle Carlos Silva Vildósola n° 10448, comuna de La Reina, en adelante indistintamente como "FUNDACIÓN INSTITUTO RELACIONAL (NUEVA EDUCACIÓN)"; se ha convenido el siguiente contrato de prestación de servicios:`);
-
-            // PRIMERO: Antecedentes
-            agregarTexto('PRIMERO: Antecedentes.', 11, true);
-            agregarTexto(`la ${datos.nombreLegal}, con personalidad jurídica y patrimonio propio, cuya finalidad es entregar una educación cristiana, inclusiva y de excelencia a todos sus estudiantes. Por su parte, FUNDACIÓN INSTITUTO RELACIONAL (NUEVA EDUCACIÓN) es una fundación cuyo objetivo es la prestación de servicios de asesoría, consultoría e investigación y desarrollo de políticas públicas en materias de educación, psicología social, desarrollo social y desarrollo sustentable.`);
-
-            // SEGUNDO: Servicios Contratados
-            agregarTexto('SEGUNDO: Servicios Contratados', 11, true);
-            const programaSeleccionado = programas.find(p => p.id == datos.programaContratado);
-            const nombrePrograma = programaSeleccionado ? programaSeleccionado.nombre : 'PROGRAMA SELECCIONADO';
-            
-            agregarTexto(`La FUNDACIÓN INSTITUTO RELACIONAL (NUEVA EDUCACIÓN) viene a implementar para el año 2025 el programa ${nombrePrograma} a los miembros seleccionados por el equipo de gestión de la comunidad educativa del ${datos.nombreFantasia}, perteneciente a ${datos.nombreLegal}.`);
-            
-            agregarTexto(`El ${datos.nombreFantasia}, en consecuencia y por el presente instrumento, viene a contratar los servicios de la FUNDACIÓN INSTITUTO RELACIONAL (NUEVA EDUCACIÓN), a fin de que ejecute la capacitación y asesoría del Programa ${nombrePrograma}.`);
-            
-            agregarTexto(`Para la realización del programa antes referido, la FUNDACIÓN INSTITUTO RELACIONAL (NUEVA EDUCACIÓN) utilizará el personal de su exclusiva subordinación y dependencia, idóneo que sea necesario. La calificación de la idoneidad de tal personal corresponderá exclusivamente a la FUNDACIÓN INSTITUTO RELACIONAL (NUEVA EDUCACIÓN).`);
-
-            // TERCERO: Precio y Forma Pago
-            agregarTexto('TERCERO: Precio y Forma Pago', 11, true);
-            agregarTexto(`Las Partes acuerdan que ${datos.nombreLegal} pagará a FUNDACIÓN INSTITUTO RELACIONAL (NUEVA EDUCACIÓN) la suma total de ${datos.precioUF} UF correspondiente al total del programa.`);
-            
-            agregarTexto(`Para los efectos del pago de los servicios, FUNDACIÓN INSTITUTO RELACIONAL (NUEVA EDUCACIÓN) emitirá una factura por los montos previamente definidos en este contrato y/o en los Anexos que se acordaren, los que se pagarán en el plazo acordado por ambas partes. El pago se realizará en ${datos.numeroCuotas} cuotas, detalladas a continuación:`);
-
-            // Tabla de cuotas
-            y += 5;
-            doc.setFontSize(10);
-            doc.setFont('helvetica', 'bold');
-            doc.text('Nº', margen, y);
-            doc.text('Fecha', margen + 20, y);
-            doc.text('Monto (UF)', margen + 70, y);
-            y += 7;
-
-            doc.setFont('helvetica', 'normal');
-            for (let i = 1; i <= datos.numeroCuotas; i++) {
-                const fecha = document.getElementById(`fechaCuota${i}`).value;
-                const monto = document.getElementById(`montoCuota${i}`).value;
-                
-                doc.text(i.toString(), margen, y);
-                doc.text(formatearFecha(fecha), margen + 20, y);
-                doc.text(`${monto} UF`, margen + 70, y);
-                y += 7;
-            }
-
-            // Agregar más contenido del contrato (simplificado por espacio)
-            y += 10;
-            agregarTexto('CUARTO: Vigencia y terminación', 11, true);
-            agregarTexto('Este contrato regirá a partir de esta fecha y tendrá duración según lo acordado por las partes.');
-
-            // Firmas
-            y += 20;
-            agregarTexto('_____________________________', 10);
-            agregarTexto(datos.nombreRepresentante, 10, true);
-            agregarTexto(`Representante Legal`, 10);
-            agregarTexto(datos.nombreLegal, 10);
-
-            y += 20;
-            agregarTexto('_____________________________', 10);
-            agregarTexto('ARNOLDO CISTERNAS CHÁVEZ', 10, true);
-            agregarTexto('Representante Legal', 10);
-            agregarTexto('FUNDACIÓN INSTITUTO RELACIONAL', 10);
-            agregarTexto('(NUEVA EDUCACIÓN)', 10);
-
-            // Descargar PDF
-            const nombreArchivo = `Contrato_${datos.nombreFantasia}_${datos.fechaContrato}.pdf`;
-            doc.save(nombreArchivo);
-        }
-
-        // Obtener datos del formulario
-        function obtenerDatosFormulario() {
-            return {
-                fechaContrato: document.getElementById('fechaContrato').value,
-                nombreLegal: document.getElementById('nombreLegal').value,
-                nombreFantasia: document.getElementById('nombreFantasia').value,
-                rutCliente: document.getElementById('rutCliente').value,
-                direccionCliente: document.getElementById('direccionCliente').value,
-                nombreRepresentante: document.getElementById('nombreRepresentante').value,
-                rutRepresentante: document.getElementById('rutRepresentante').value,
-                fechaEscritura: document.getElementById('fechaEscritura').value,
-                nombreNotario: document.getElementById('nombreNotario').value,
-                programaContratado: document.getElementById('programaContratado').value,
-                precioUF: document.getElementById('precioUF').value,
-                numeroCuotas: parseInt(document.getElementById('numeroCuotas').value)
-            };
-        }
-
-        // Formatear fecha
-        function formatearFecha(fecha) {
-            const opciones = { 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-            };
-            return new Date(fecha + 'T12:00:00').toLocaleDateString('es-ES', opciones);
-        }
-
-        // Event listeners cuando el DOM esté listo
-        document.addEventListener('DOMContentLoaded', function() {
-            // Configurar fecha por defecto
-            document.getElementById('fechaContrato').valueAsDate = new Date();
-            
-            // Generar cuotas por defecto
-            generarCuotas();
-            
-            // Event listeners para botones
-            document.getElementById('btnConectar').addEventListener('click', conectarSupabase);
-            document.getElementById('btnGuardar').addEventListener('click', guardarCliente);
-            document.getElementById('clienteExistente').addEventListener('change', cargarClienteExistente);
-            document.getElementById('numeroCuotas').addEventListener('change', generarCuotas);
-            document.getElementById('precioUF').addEventListener('change', calcularCuotas);
-            
-            // Event listener para el formulario
-            document.getElementById('contratoForm').addEventListener('submit', async function(e) {
-                e.preventDefault();
-                
-                if (!validarFormulario()) return;
-                
-                mostrarLoading(true);
-                
-                try {
-                    await generarPDF();
-                    mostrarAlerta('Contrato generado exitosamente', 'success');
-                } catch (error) {
-                    console.error('Error generando PDF:', error);
-                    mostrarAlerta('Error al generar contrato: ' + error.message, 'error');
-                } finally {
-                    mostrarLoading(false);
-                }
-            });
-        });
-    </script>
-</body>
-</html>
+            agregarTexto(`En Santiago de Chile, a ${fechaTexto}, entre ${datos.nombreLegal}, Rol Único Tributario número ${datos.rutCliente}, representada por ${datos.nombreRepresentante}, cédula nacional de identidad número ${datos.rutRepresentante}, todos con domicilio para estos efect
