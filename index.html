@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de Contratos - Fundación Nueva Educación</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/supabase-js/2.38.4/supabase.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .form-container {
+            padding: 40px;
+        }
+
+        .form-section {
+            margin-bottom: 40px;
+            padding: 25px;
+            border: 2px solid #f8f9fa;
+            border-radius: 15px;
+            background: #fdfdfd;
+        }
+
+        .form-section h3 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.3rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-section h3::before {
+            content: '';
+            width: 4px;
+            height: 25px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 2px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .form-row.single {
+            grid-template-columns: 1fr;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+
+        input, select, textarea {
+            padding: 12px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            transform: translateY(-1px);
+        }
+
+        .cuotas-container {
+            margin-top: 20px;
+        }
+
+        .cuota-item {
+            display: grid;
+            grid-template-columns: auto 1fr 1fr 60px;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border: 1px solid #e9ecef;
+        }
+
+        .cuota-number {
+            font-weight: bold;
+            color: #667eea;
+            min-width: 30px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+            transform: translateY(-1px);
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+            padding: 8px 12px;
+            font-size: 0.8rem;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+            padding: 8px 16px;
+            font-size: 0.9rem;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+
+        .cliente-existente {
+            background: #e3f2fd;
+            border: 2px solid #2196f3;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .cliente-existente select {
+            background: white;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .cuota-item {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+            
+            .btn-group {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Generador de Contratos</h1>
+            <p>Fundación Instituto Relacional (Nueva Educación)</p>
+        </div>
+
+        <div class="form-container">
+            <div id="alerts"></div>
+            
+            <form id="contratoForm">
+                <!-- Configuración de Supabase -->
+                <div class="form-section">
+                    <h3>Configuración Base de Datos</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>URL de Supabase</label>
+                            <input type="url" id="supabaseUrl" placeholder="https://tu-proyecto.supabase.co" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Clave Anón de Supabase</label>
+                            <input type="password" id="supabaseKey" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." required>
+                        </div>
+                    </div>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-secondary" id="btnConectar">Conectar a Supabase</button>
+                    </div>
+                </div>
+
+                <!-- Cliente Existente -->
+                <div class="form-section" id="clienteExistenteSection" style="display: none;">
+                    <h3>Cliente Existente</h3>
+                    <div class="cliente-existente">
+                        <div class="form-group">
+                            <label>Seleccionar Cliente Existente (Opcional)</label>
+                            <select id="clienteExistente">
+                                <option value="">-- Seleccionar cliente existente o crear nuevo --</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Información General -->
+                <div class="form-section">
+                    <h3>Información General</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Fecha del Contrato</label>
+                            <input type="date" id="fechaContrato" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Programa Contratado</label>
+                            <select id="programaContratado" required>
+                                <option value="">Seleccionar programa...</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Información del Cliente -->
+                <div class="form-section">
+                    <h3>Información del Cliente</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Nombre Legal del Cliente</label>
+                            <input type="text" id="nombreLegal" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Nombre de Fantasía</label>
+                            <input type="text" id="nombreFantasia" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>RUT del Cliente</label>
+                            <input type="text" id="rutCliente" placeholder="12.345.678-9" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Dirección del Cliente</label>
+                            <input type="text" id="direccionCliente" required>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Representante Legal -->
+                <div class="form-section">
+                    <h3>Representante Legal</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Nombre del Representante Legal</label>
+                            <input type="text" id="nombreRepresentante" required>
+                        </div>
+                        <div class="form-group">
+                            <label>RUT del Representante</label>
+                            <input type="text" id="rutRepresentante" placeholder="12.345.678-9" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Fecha de Escritura Pública</label>
+                            <input type="date" id="fechaEscritura" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Nombre del Notario Público</label>
+                            <input type="text" id="nombreNotario" required>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Información Financiera -->
+                <div class="form-section">
+                    <h3>Información Financiera</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Precio Total (UF)</label>
+                            <input type="number" id="precioUF" step="0.01" min="0" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Número de Cuotas</label>
+                            <input type="number" id="numeroCuotas" min="1" max="12" value="4" required>
+                        </div>
+                    </div>
+                    
+                    <div class="cuotas-container">
+                        <h4 style="margin-bottom: 15px; color: #2c3e50;">Detalle de Cuotas</h4>
+                        <div id="cuotasDetalle">
+                            <!-- Las cuotas se generarán dinámicamente -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="btn-group">
+                    <button type="button" class="btn btn-success" id="btnGuardar">💾 Guardar Cliente</button>
+                    <button type="submit" class="btn btn-primary">📄 Generar Contrato PDF</button>
+                </div>
+            </form>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Generando contrato...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Variables globales
+        let supabase = null;
+        let programas = [];
+
+        // Función para mostrar alertas
+        function mostrarAlerta(mensaje, tipo) {
+            const alertsContainer = document.getElementById('alerts');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${tipo}`;
+            alert.textContent = mensaje;
+            
+            alertsContainer.innerHTML = '';
+            alertsContainer.appendChild(alert);
+            
+            setTimeout(() => {
+                alert.remove();
+            }, 5000);
+        }
+
+        // Función para mostrar/ocultar loading
+        function mostrarLoading(show) {
+            const loading = document.getElementById('loading');
+            if (show) {
+                loading.classList.add('show');
+            } else {
+                loading.classList.remove('show');
+            }
+        }
+
+        // Conectar a Supabase
+        async function conectarSupabase() {
+            const url = document.getElementById('supabaseUrl').value.trim();
+            const key = document.getElementById('supabaseKey').value.trim();
+
+            if (!url || !key) {
+                mostrarAlerta('Por favor, completa la URL y clave de Supabase', 'error');
+                return;
+            }
+
+            // Validar formato de URL
+            if (!url.startsWith('https://') || !url.includes('.supabase.co')) {
+                mostrarAlerta('La URL debe tener el formato: https://tu-proyecto.supabase.co', 'error');
+                return;
+            }
+
+            // Validar que la clave sea un JWT
+            if (!key.startsWith('eyJ')) {
+                mostrarAlerta('La clave anónima debe comenzar con "eyJ"', 'error');
+                return;
+            }
+
+            try {
+                // Verificar que Supabase esté disponible
+                if (!window.supabase) {
+                    throw new Error('Biblioteca de Supabase no cargada');
+                }
+
+                mostrarAlerta('Conectando a Supabase...', 'success');
+                supabase = window.supabase.createClient(url, key);
+                
+                // Hacer una prueba simple de conexión
+                console.log('Cliente Supabase creado:', supabase);
+                
+                // Verificar conexión con una consulta simple
+                const { data, error } = await supabase
+                    .from('programas')
+                    .select('count', { count: 'exact', head: true });
+
+                if (error) {
+                    console.error('Error de conexión:', error);
+                    throw new Error(`Error de conexión: ${error.message}\n\nPosibles causas:\n- Credenciales incorrectas\n- Base de datos no accesible\n- Tablas no creadas`);
+                }
+                
+                // Si llegamos aquí, la conexión es exitosa
+                console.log('Conexión exitosa, cargando datos...');
+                
+                // Cargar datos
+                await cargarProgramas();
+                await cargarClientes();
+                
+                document.getElementById('clienteExistenteSection').style.display = 'block';
+                mostrarAlerta('✅ Conectado exitosamente a Supabase', 'success');
+                
+            } catch (error) {
+                console.error('Error completo:', error);
+                mostrarAlerta(`❌ Error al conectar: ${error.message}`, 'error');
+            }
+        }
+
+        // Cargar programas desde Supabase
+        async function cargarProgramas() {
+            try {
+                const { data, error } = await supabase
+                    .from('programas')
+                    .select('*')
+                    .order('codigo_servicio', { ascending: false });
+
+                if (error) throw error;
+
+                programas = data || [];
+                const select = document.getElementById('programaContratado');
+                select.innerHTML = '<option value="">Seleccionar programa...</option>';
+                
+                programas.forEach(programa => {
+                    const option = document.createElement('option');
+                    option.value = programa.id;
+                    option.textContent = `${programa.codigo_servicio} - ${programa.nombre} (${programa.horas_totales}h)`;
+                    select.appendChild(option);
+                });
+
+            } catch (error) {
+                console.error('Error cargando programas:', error);
+                mostrarAlerta('Error al cargar programas: ' + error.message, 'error');
+            }
+        }
+
+        // Cargar clientes existentes
+        async function cargarClientes() {
+            try {
+                const { data, error } = await supabase
+                    .from('clientes')
+                    .select('*')
+                    .order('nombre_legal');
+
+                if (error) throw error;
+
+                const select = document.getElementById('clienteExistente');
+                select.innerHTML = '<option value="">-- Seleccionar cliente existente o crear nuevo --</option>';
+                
+                (data || []).forEach(cliente => {
+                    const option = document.createElement('option');
+                    option.value = cliente.id;
+                    option.textContent = `${cliente.nombre_legal} (${cliente.rut})`;
+                    option.dataset.cliente = JSON.stringify(cliente);
+                    select.appendChild(option);
+                });
+
+            } catch (error) {
+                console.error('Error cargando clientes:', error);
+                mostrarAlerta('Error al cargar clientes: ' + error.message, 'error');
+            }
+        }
+
+        // Cargar datos de cliente existente
+        function cargarClienteExistente() {
+            const select = document.getElementById('clienteExistente');
+            const selectedOption = select.options[select.selectedIndex];
+            
+            if (selectedOption.value && selectedOption.dataset.cliente) {
+                const cliente = JSON.parse(selectedOption.dataset.cliente);
+                
+                document.getElementById('nombreLegal').value = cliente.nombre_legal || '';
+                document.getElementById('nombreFantasia').value = cliente.nombre_fantasia || '';
+                document.getElementById('rutCliente').value = cliente.rut || '';
+                document.getElementById('direccionCliente').value = cliente.direccion || '';
+                document.getElementById('nombreRepresentante').value = cliente.nombre_representante || '';
+                document.getElementById('rutRepresentante').value = cliente.rut_representante || '';
+                document.getElementById('fechaEscritura').value = cliente.fecha_escritura || '';
+                document.getElementById('nombreNotario').value = cliente.nombre_notario || '';
+            }
+        }
+
+        // Generar cuotas dinámicamente
+        function generarCuotas() {
+            const numeroCuotas = parseInt(document.getElementById('numeroCuotas').value) || 4;
+            const container = document.getElementById('cuotasDetalle');
+            
+            container.innerHTML = '';
+            
+            for (let i = 1; i <= numeroCuotas; i++) {
+                const cuotaDiv = document.createElement('div');
+                cuotaDiv.className = 'cuota-item';
+                cuotaDiv.innerHTML = `
+                    <div class="cuota-number">Cuota ${i}</div>
+                    <div class="form-group">
+                        <input type="date" id="fechaCuota${i}" required>
+                    </div>
+                    <div class="form-group">
+                        <input type="number" id="montoCuota${i}" placeholder="Monto UF" step="0.01" min="0" required>
+                    </div>
+                    <button type="button" class="btn btn-danger" onclick="eliminarCuota(${i})">✕</button>
+                `;
+                container.appendChild(cuotaDiv);
+            }
+            
+            calcularCuotas();
+        }
+
+        // Calcular cuotas automáticamente
+        function calcularCuotas() {
+            const precioTotal = parseFloat(document.getElementById('precioUF').value) || 0;
+            const numeroCuotas = parseInt(document.getElementById('numeroCuotas').value) || 4;
+            
+            if (precioTotal > 0 && numeroCuotas > 0) {
+                const montoPorCuota = (precioTotal / numeroCuotas).toFixed(2);
+                
+                for (let i = 1; i <= numeroCuotas; i++) {
+                    const input = document.getElementById(`montoCuota${i}`);
+                    if (input && !input.value) {
+                        input.value = montoPorCuota;
+                    }
+                }
+            }
+        }
+
+        // Eliminar cuota
+        function eliminarCuota(numero) {
+            const numeroCuotasActual = parseInt(document.getElementById('numeroCuotas').value);
+            if (numeroCuotasActual > 1) {
+                document.getElementById('numeroCuotas').value = numeroCuotasActual - 1;
+                generarCuotas();
+            }
+        }
+
+        // Guardar cliente en Supabase
+        async function guardarCliente() {
+            if (!supabase) {
+                mostrarAlerta('Primero conecta a Supabase', 'error');
+                return;
+            }
+
+            const clienteData = {
+                nombre_legal: document.getElementById('nombreLegal').value,
+                nombre_fantasia: document.getElementById('nombreFantasia').value,
+                rut: document.getElementById('rutCliente').value,
+                direccion: document.getElementById('direccionCliente').value,
+                nombre_representante: document.getElementById('nombreRepresentante').value,
+                rut_representante: document.getElementById('rutRepresentante').value,
+                fecha_escritura: document.getElementById('fechaEscritura').value,
+                nombre_notario: document.getElementById('nombreNotario').value
+            };
+
+            try {
+                const { data, error } = await supabase
+                    .from('clientes')
+                    .upsert([clienteData]);
+
+                if (error) throw error;
+
+                mostrarAlerta('Cliente guardado exitosamente', 'success');
+                await cargarClientes();
+
+            } catch (error) {
+                console.error('Error guardando cliente:', error);
+                mostrarAlerta('Error al guardar cliente: ' + error.message, 'error');
+            }
+        }
+
+        // Validar formulario
+        function validarFormulario() {
+            const requiredFields = [
+                'fechaContrato', 'nombreLegal', 'nombreFantasia', 'rutCliente',
+                'direccionCliente', 'nombreRepresentante', 'rutRepresentante',
+                'fechaEscritura', 'nombreNotario', 'precioUF', 'numeroCuotas'
+            ];
+
+            for (let field of requiredFields) {
+                const element = document.getElementById(field);
+                if (!element.value.trim()) {
+                    mostrarAlerta(`El campo ${element.previousElementSibling.textContent} es requerido`, 'error');
+                    element.focus();
+                    return false;
+                }
+            }
+
+            // Validar cuotas
+            const numeroCuotas = parseInt(document.getElementById('numeroCuotas').value);
+            for (let i = 1; i <= numeroCuotas; i++) {
+                const fecha = document.getElementById(`fechaCuota${i}`);
+                const monto = document.getElementById(`montoCuota${i}`);
+                
+                if (!fecha.value || !monto.value) {
+                    mostrarAlerta(`Completa todos los datos de la cuota ${i}`, 'error');
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        // Generar PDF del contrato
+        async function generarPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            // Obtener datos del formulario
+            const datos = obtenerDatosFormulario();
+            
+            // Configurar fuente y márgenes
+            doc.setFont('helvetica');
+            let y = 20;
+            const margen = 20;
+            const anchoUtil = 170;
+
+            // Función para agregar texto con salto de línea automático
+            function agregarTexto(texto, fontSize = 11, isBold = false) {
+                doc.setFontSize(fontSize);
+                doc.setFont('helvetica', isBold ? 'bold' : 'normal');
+                
+                const lineas = doc.splitTextToSize(texto, anchoUtil);
+                
+                lineas.forEach(linea => {
+                    if (y > 270) {
+                        doc.addPage();
+                        y = 20;
+                    }
+                    doc.text(linea, margen, y);
+                    y += fontSize * 0.5;
+                });
+                y += 5;
+            }
+
+            // Título del contrato
+            agregarTexto('CONTRATO DE PRESTACIÓN DE SERVICIOS', 14, true);
+            agregarTexto('FUNDACIÓN INSTITUTO RELACIONAL (NUEVA EDUCACIÓN)', 12, true);
+            agregarTexto('Y', 12, true);
+            agregarTexto(datos.nombreLegal.toUpperCase(), 12, true);
+            y += 10;
+
+            // Introducción con fecha y partes
+            const fechaTexto = formatearFecha(datos.fechaContrato);
+            agregarTexto(`En Santiago de Chile, a ${fechaTexto}, entre ${datos.nombreLegal}, Rol Único Tributario número ${datos.rutCliente}, representada por ${datos.nombreRepresentante}, cédula nacional de identidad número ${datos.rutRepresentante}, todos con domicilio para estos efectos en ${datos.direccionCliente}, en adelante e indistintamente como "${datos.nombreFantasia}" por una parte, FUNDACIÓN INSTITUTO RELACIONAL (NUEVA EDUCACIÓN), Rol Único Tributario número 65.166.503-5, representada por don Arnoldo Cisternas Chávez, cédula nacional de identidad número 10.740.623-9, ambos domiciliados para estos efectos calle Carlos Silva Vildósola n° 10448, comuna de La Reina, en adelante indistintamente como "FUNDACIÓN INSTITUTO RELACIONAL (NUEVA EDUCACIÓN)"; se ha convenido el siguiente contrato de prestación de servicios:`);
+
+            // PRIMERO: Antecedentes
+            agregarTexto('PRIMERO: Antecedentes.', 11, true);
+            agregarTexto(`la ${datos.nombreLegal}, con personalidad jurídica y patrimonio propio, cuya finalidad es entregar una educación cristiana, inclusiva y de excelencia a todos sus estudiantes. Por su parte, FUNDACIÓN INSTITUTO RELACIONAL (NUEVA EDUCACIÓN) es una fundación cuyo objetivo es la prestación de servicios de asesoría, consultoría e investigación y desarrollo de políticas públicas en materias de educación, psicología social, desarrollo social y desarrollo sustentable.`);
+
+            // SEGUNDO: Servicios Contratados
+            agregarTexto('SEGUNDO: Servicios Contratados', 11, true);
+            const programaSeleccionado = programas.find(p => p.id == datos.programaContratado);
+            const nombrePrograma = programaSeleccionado ? programaSeleccionado.nombre : 'PROGRAMA SELECCIONADO';
+            
+            agregarTexto(`La FUNDACIÓN INSTITUTO RELACIONAL (NUEVA EDUCACIÓN) viene a implementar para el año 2025 el programa ${nombrePrograma} a los miembros seleccionados por el equipo de gestión de la comunidad educativa del ${datos.nombreFantasia}, perteneciente a ${datos.nombreLegal}.`);
+            
+            agregarTexto(`El ${datos.nombreFantasia}, en consecuencia y por el presente instrumento, viene a contratar los servicios de la FUNDACIÓN INSTITUTO RELACIONAL (NUEVA EDUCACIÓN), a fin de que ejecute la capacitación y asesoría del Programa ${nombrePrograma}.`);
+            
+            agregarTexto(`Para la realización del programa antes referido, la FUNDACIÓN INSTITUTO RELACIONAL (NUEVA EDUCACIÓN) utilizará el personal de su exclusiva subordinación y dependencia, idóneo que sea necesario. La calificación de la idoneidad de tal personal corresponderá exclusivamente a la FUNDACIÓN INSTITUTO RELACIONAL (NUEVA EDUCACIÓN).`);
+
+            // TERCERO: Precio y Forma Pago
+            agregarTexto('TERCERO: Precio y Forma Pago', 11, true);
+            agregarTexto(`Las Partes acuerdan que ${datos.nombreLegal} pagará a FUNDACIÓN INSTITUTO RELACIONAL (NUEVA EDUCACIÓN) la suma total de ${datos.precioUF} UF correspondiente al total del programa.`);
+            
+            agregarTexto(`Para los efectos del pago de los servicios, FUNDACIÓN INSTITUTO RELACIONAL (NUEVA EDUCACIÓN) emitirá una factura por los montos previamente definidos en este contrato y/o en los Anexos que se acordaren, los que se pagarán en el plazo acordado por ambas partes. El pago se realizará en ${datos.numeroCuotas} cuotas, detalladas a continuación:`);
+
+            // Tabla de cuotas
+            y += 5;
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Nº', margen, y);
+            doc.text('Fecha', margen + 20, y);
+            doc.text('Monto (UF)', margen + 70, y);
+            y += 7;
+
+            doc.setFont('helvetica', 'normal');
+            for (let i = 1; i <= datos.numeroCuotas; i++) {
+                const fecha = document.getElementById(`fechaCuota${i}`).value;
+                const monto = document.getElementById(`montoCuota${i}`).value;
+                
+                doc.text(i.toString(), margen, y);
+                doc.text(formatearFecha(fecha), margen + 20, y);
+                doc.text(`${monto} UF`, margen + 70, y);
+                y += 7;
+            }
+
+            // Agregar más contenido del contrato (simplificado por espacio)
+            y += 10;
+            agregarTexto('CUARTO: Vigencia y terminación', 11, true);
+            agregarTexto('Este contrato regirá a partir de esta fecha y tendrá duración según lo acordado por las partes.');
+
+            // Firmas
+            y += 20;
+            agregarTexto('_____________________________', 10);
+            agregarTexto(datos.nombreRepresentante, 10, true);
+            agregarTexto(`Representante Legal`, 10);
+            agregarTexto(datos.nombreLegal, 10);
+
+            y += 20;
+            agregarTexto('_____________________________', 10);
+            agregarTexto('ARNOLDO CISTERNAS CHÁVEZ', 10, true);
+            agregarTexto('Representante Legal', 10);
+            agregarTexto('FUNDACIÓN INSTITUTO RELACIONAL', 10);
+            agregarTexto('(NUEVA EDUCACIÓN)', 10);
+
+            // Descargar PDF
+            const nombreArchivo = `Contrato_${datos.nombreFantasia}_${datos.fechaContrato}.pdf`;
+            doc.save(nombreArchivo);
+        }
+
+        // Obtener datos del formulario
+        function obtenerDatosFormulario() {
+            return {
+                fechaContrato: document.getElementById('fechaContrato').value,
+                nombreLegal: document.getElementById('nombreLegal').value,
+                nombreFantasia: document.getElementById('nombreFantasia').value,
+                rutCliente: document.getElementById('rutCliente').value,
+                direccionCliente: document.getElementById('direccionCliente').value,
+                nombreRepresentante: document.getElementById('nombreRepresentante').value,
+                rutRepresentante: document.getElementById('rutRepresentante').value,
+                fechaEscritura: document.getElementById('fechaEscritura').value,
+                nombreNotario: document.getElementById('nombreNotario').value,
+                programaContratado: document.getElementById('programaContratado').value,
+                precioUF: document.getElementById('precioUF').value,
+                numeroCuotas: parseInt(document.getElementById('numeroCuotas').value)
+            };
+        }
+
+        // Formatear fecha
+        function formatearFecha(fecha) {
+            const opciones = { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            };
+            return new Date(fecha + 'T12:00:00').toLocaleDateString('es-ES', opciones);
+        }
+
+        // Event listeners cuando el DOM esté listo
+        document.addEventListener('DOMContentLoaded', function() {
+            // Configurar fecha por defecto
+            document.getElementById('fechaContrato').valueAsDate = new Date();
+            
+            // Generar cuotas por defecto
+            generarCuotas();
+            
+            // Event listeners para botones
+            document.getElementById('btnConectar').addEventListener('click', conectarSupabase);
+            document.getElementById('btnGuardar').addEventListener('click', guardarCliente);
+            document.getElementById('clienteExistente').addEventListener('change', cargarClienteExistente);
+            document.getElementById('numeroCuotas').addEventListener('change', generarCuotas);
+            document.getElementById('precioUF').addEventListener('change', calcularCuotas);
+            
+            // Event listener para el formulario
+            document.getElementById('contratoForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                if (!validarFormulario()) return;
+                
+                mostrarLoading(true);
+                
+                try {
+                    await generarPDF();
+                    mostrarAlerta('Contrato generado exitosamente', 'success');
+                } catch (error) {
+                    console.error('Error generando PDF:', error);
+                    mostrarAlerta('Error al generar contrato: ' + error.message, 'error');
+                } finally {
+                    mostrarLoading(false);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
